@@ -2,10 +2,10 @@ package main
 
 import (
 	"context"
-	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
-	"go.mongodb.org/mongo-driver/mongo"
+	"log"
+
 	"goexptauction/configuration/database/mongodb"
+	"goexptauction/configuration/logger"
 	"goexptauction/internal/infra/api/web/controller/auction_controller"
 	"goexptauction/internal/infra/api/web/controller/bid_controller"
 	"goexptauction/internal/infra/api/web/controller/user_controller"
@@ -15,7 +15,10 @@ import (
 	"goexptauction/internal/usecase/auction_usecase"
 	"goexptauction/internal/usecase/bid_usecase"
 	"goexptauction/internal/usecase/user_usecase"
-	"log"
+
+	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 func main() {
@@ -34,7 +37,12 @@ func main() {
 
 	router := gin.Default()
 
-	userController, bidController, auctionsController := initDependencies(databaseConnection)
+	userController, bidController, auctionsController, auctionRepository := initDependencies(databaseConnection)
+
+	// reagenda os leilões que continuam abertos no banco
+	if err := auctionRepository.ScheduleActiveAuctions(ctx); err != nil {
+		logger.Error("Error trying to reschedule active auctions", err)
+	}
 
 	router.GET("/auction", auctionsController.FindAuctions)
 	router.GET("/auction/:auctionId", auctionsController.FindAuctionById)
@@ -50,9 +58,10 @@ func main() {
 func initDependencies(database *mongo.Database) (
 	userController *user_controller.UserController,
 	bidController *bid_controller.BidController,
-	auctionController *auction_controller.AuctionController) {
-
-	auctionRepository := auction.NewAuctionRepository(database)
+	auctionController *auction_controller.AuctionController,
+	auctionRepository *auction.AuctionRepository,
+) {
+	auctionRepository = auction.NewAuctionRepository(database)
 	bidRepository := bid.NewBidRepository(database, auctionRepository)
 	userRepository := user.NewUserRepository(database)
 
