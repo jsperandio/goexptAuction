@@ -19,13 +19,13 @@ docker compose up --build
 
 A API sobe em `http://localhost:8080` e o Mongo em `localhost:27017`. A app só inicia depois que o Mongo responde ao healthcheck.
 
-Para derrubar (o `-v` também remove o volume do Mongo):
+Para derrubar tudo:
 
 ```bash
 docker compose down -v
 ```
 
-Sem Docker, aponte `MONGODB_URL` para `localhost` e rode **a partir da raiz**, porque o `main.go` carrega `cmd/auction/.env` por caminho relativo:
+Sem Docker, `MONGODB_URL` para `localhost` e rode **a partir da raiz**, porque o `main.go` usa `cmd/auction/.env` caminho relativo:
 
 ```bash
 docker compose up -d mongodb
@@ -86,9 +86,9 @@ curl -s -X POST http://localhost:8080/auction \
 
 ## Fechamento automático
 
-Ao criar um leilão, uma Goroutine é disparada e aguarda `AUCTION_INTERVAL` e então grava `Completed` no Mongo quando o intervalo expira.
+Ao criar um leilão, uma Goroutine é disparada e aguarda `AUCTION_INTERVAL` e então grava `Completed` no Mongo quando o intervalo termina.
 
-O prazo é `timestamp_de_criação + AUCTION_INTERVAL`, a mesma fórmula que o `BidRepository` já usa para recusar lances vencidos. Como a validação vive só em memória, um restart perderia os agendamentos: na inicialização, `ScheduleActiveAuctions` varre os leilões ainda abertos, fecha os vencidos e reagenda novamente o resto.
+O prazo é `timestamp_de_criação + AUCTION_INTERVAL`, a mesma fórmula que o `BidRepository` já usa para recusar lances vencidos. Como a validação vive só em memória, um restart perderia os agendamentos, então adicionado na inicialização, `ScheduleActiveAuctions` varre os leilões ainda abertos, fecha os vencidos e reagenda novamente o resto.
 
 | Arquivo | Papel |
 | --- | --- |
