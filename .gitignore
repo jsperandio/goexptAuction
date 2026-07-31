@@ -30,3 +30,41 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+#IA Providers
+# Claude Code
+.claude/
+CLAUDE.md
+CLAUDE.local.md
+.claude.json
+
+# Gemini / Jules
+.gemini/
+GEMINI.md
+
+# GitHub Copilot
+.github/copilot-instructions.md
+.github/instructions/
+.github/prompts/
+
+# Cursor
+.cursor/
+.cursorrules
+.cursorignore
+.cursorindexingignore
+
+# Windsurf / Codeium
+.windsurf/
+.windsurfrules
+.codeium/
+
+# OpenAI Codex e convenção multi-agente
+AGENTS.md
+
+# MCP e histórico de sessões
+.mcp.json
+.specstory/
+.history/
+
+
+objetivo.txt
