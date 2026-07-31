@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
+
 	"goexptauction/configuration/logger"
 	"goexptauction/internal/entity/user_entity"
 	"goexptauction/internal/internal_error"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type UserEntityMongo struct {
@@ -26,17 +28,16 @@ func NewUserRepository(database *mongo.Database) *UserRepository {
 	}
 }
 
-func (ur *UserRepository) FindUserById(
-	ctx context.Context, userId string) (*user_entity.User, *internal_error.InternalError) {
+func (ur *UserRepository) FindUserById(ctx context.Context, userId string) (*user_entity.User, *internal_error.InternalError) {
 	filter := bson.M{"_id": userId}
 
 	var userEntityMongo UserEntityMongo
 	err := ur.Collection.FindOne(ctx, filter).Decode(&userEntityMongo)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
-			logger.Error(fmt.Sprintf("User not found with this id = %d", userId), err)
+			logger.Error(fmt.Sprintf("User not found with this id = %s", userId), err)
 			return nil, internal_error.NewNotFoundError(
-				fmt.Sprintf("User not found with this id = %d", userId))
+				fmt.Sprintf("User not found with this id = %s", userId))
 		}
 
 		logger.Error("Error trying to find user by userId", err)
