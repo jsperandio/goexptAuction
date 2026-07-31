@@ -25,10 +25,11 @@ go.work
 go.work.sum
 
 # env file
+# O template versionado é cmd/auction/.env.example
 .env
 
 # Editor/IDE
-# .idea/
+.idea/
 # .vscode/
 
 #IA Providers
