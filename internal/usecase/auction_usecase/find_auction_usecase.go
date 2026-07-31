@@ -2,6 +2,7 @@ package auction_usecase
 
 import (
 	"context"
+
 	"goexptauction/configuration/logger"
 	"goexptauction/internal/entity/auction_entity"
 	"goexptauction/internal/internal_error"
@@ -9,7 +10,8 @@ import (
 )
 
 func (au *AuctionUseCase) FindAuctionById(
-	ctx context.Context, id string) (*AuctionOutputDTO, *internal_error.InternalError) {
+	ctx context.Context, id string,
+) (*AuctionOutputDTO, *internal_error.InternalError) {
 	auctionEntity, err := au.auctionRepositoryInterface.FindAuctionById(ctx, id)
 	if err != nil {
 		return nil, err
@@ -26,10 +28,8 @@ func (au *AuctionUseCase) FindAuctionById(
 	}, nil
 }
 
-func (au *AuctionUseCase) FindAuctions(
-	ctx context.Context,
-	status AuctionStatus,
-	category, productName string) ([]AuctionOutputDTO, *internal_error.InternalError) {
+func (au *AuctionUseCase) FindAuctions(ctx context.Context, status AuctionStatus, category, productName string,
+) ([]AuctionOutputDTO, *internal_error.InternalError) {
 	auctionEntities, err := au.auctionRepositoryInterface.FindAuctions(
 		ctx, auction_entity.AuctionStatus(status), category, productName)
 	if err != nil {
@@ -54,7 +54,8 @@ func (au *AuctionUseCase) FindAuctions(
 
 func (au *AuctionUseCase) FindWinningBidByAuctionId(
 	ctx context.Context,
-	auctionId string) (*WinningInfoOutputDTO, *internal_error.InternalError) {
+	auctionId string,
+) (*WinningInfoOutputDTO, *internal_error.InternalError) {
 	auction, err := au.auctionRepositoryInterface.FindAuctionById(ctx, auctionId)
 	if err != nil {
 		return nil, err
