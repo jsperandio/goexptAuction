@@ -1,113 +1,132 @@
 # goexptAuction
 
-Sistema de leilões em Go com fechamento automático via Goroutines — desafio da pós Go Expert.
+Desafio de fechamento automático de leilões da pós Go Expert.
 
-A base do projeto é o repositório do curso ([devfullcycle/labs-auction-goexpert](https://github.com/devfullcycle/labs-auction-goexpert)), que já implementa criação de leilões, lances (bids) e a validação que impede lances em leilões encerrados. O acréscimo deste repositório é a rotina de **fechamento automático** do leilão após a duração configurada.
+A base é o [repositório do curso](https://github.com/devfullcycle/labs-auction-goexpert), que já implementa criação de leilões, lances e a validação que recusa lance em leilão encerrado.O leilão nunca expira. 
 
-## Stack
-
-- Go 1.20 (API REST com [Gin](https://github.com/gin-gonic/gin))
-- MongoDB
-- Docker / Docker Compose
+O acréscimo aqui é a Goroutine que fecha o leilão sozinho depois da duração configurada, assim como a revalidação de leilões ativos na inicialização da aplicação, para não perder nenhum agendamento caso o serviço seja reiniciado.
 
 ## Como rodar
 
-O `docker-compose.yml` lê as variáveis de `cmd/auction/.env`, que **não é versionado**. Crie-o a partir do template antes de subir a stack:
+O compose lê `cmd/auction/.env`. 
+
+Crie a partir do template:
 
 ```bash
 cp cmd/auction/.env.example cmd/auction/.env
 docker compose up --build
 ```
 
-A API sobe em `http://localhost:8080` e o MongoDB em `localhost:27017`. O container da aplicação só inicia depois que o MongoDB responde ao healthcheck.
+A API sobe em `http://localhost:8080` e o Mongo em `localhost:27017`. A app só inicia depois que o Mongo responde ao healthcheck.
 
-Para derrubar tudo (o `-v` também remove o volume de dados do Mongo):
+Para derrubar (o `-v` também remove o volume do Mongo):
 
 ```bash
 docker compose down -v
 ```
 
+Sem Docker, aponte `MONGODB_URL` para `localhost` e rode **a partir da raiz**, porque o `main.go` carrega `cmd/auction/.env` por caminho relativo:
+
+```bash
+docker compose up -d mongodb
+MONGODB_URL=mongodb://admin:admin@localhost:27017/auctions?authSource=admin go run cmd/auction/main.go
+```
+
 ## Variáveis de ambiente
 
-Todas ficam em `cmd/auction/.env` — veja `cmd/auction/.env.example`.
+Ficam em `cmd/auction/.env` leve como base -> `cmd/auction/.env.example`.
 
-| Variável | Descrição | Exemplo | Fallback no código |
+| Variável | Descrição | Exemplo | Fallback |
 | --- | --- | --- | --- |
-| `AUCTION_INTERVAL` | **Duração do leilão.** Define quanto tempo após a criação o leilão é fechado automaticamente. | `20s` | `5m` |
-| `BATCH_INSERT_INTERVAL` | Intervalo de flush do lote de lances. | `20s` | `3m` |
-| `MAX_BATCH_SIZE` | Quantidade de lances que dispara a gravação do lote. | `4` | `5` |
-| `MONGODB_URL` | String de conexão do MongoDB. | `mongodb://admin:admin@mongodb:27017/auctions?authSource=admin` | — |
-| `MONGODB_DB` | Nome do banco. | `auctions` | — |
-| `MONGO_INITDB_ROOT_USERNAME` | Usuário root criado pelo container do Mongo. | `admin` | — |
-| `MONGO_INITDB_ROOT_PASSWORD` | Senha do usuário root. | `admin` | — |
+| `AUCTION_INTERVAL` | **Duração do leilão**, do momento da criação até o fechamento automático | `20s` | `5m` |
+| `BATCH_INSERT_INTERVAL` | Intervalo de flush do lote de lances | `20s` | `3m` |
+| `MAX_BATCH_SIZE` | Quantidade de lances que dispara a gravação do lote | `4` | `5` |
+| `MONGODB_URL` | Conexão do Mongo | `mongodb://admin:admin@mongodb:27017/auctions?authSource=admin` | — |
+| `MONGODB_DB` | Nome do banco | `auctions` | — |
+| `MONGO_INITDB_ROOT_USERNAME` / `_PASSWORD` | Credenciais criadas pelo container do Mongo | `admin` | — |
 
-As durações usam o formato do [`time.ParseDuration`](https://pkg.go.dev/time#ParseDuration): `30s`, `5m`, `1h30m`. Valores inválidos não derrubam a aplicação — ela cai silenciosamente no fallback da tabela acima.
+As durações usam o formato do [`time.ParseDuration`](https://pkg.go.dev/time#ParseDuration): `30s`, `1m`, `1h30m` com valor default igual tabela. 
 
-Para um leilão de 1 minuto, por exemplo:
+Para um leilão de um minuto:
 
 ```
 AUCTION_INTERVAL=1m
 ```
 
-## Rodando fora do Docker
+## Rotas
 
-Requer um MongoDB acessível. Ajuste o host em `MONGODB_URL` de `mongodb` (nome do serviço no Compose) para `localhost`:
-
-```
-MONGODB_URL=mongodb://admin:admin@localhost:27017/auctions?authSource=admin
-```
-
-Execute **a partir da raiz do repositório** — o `main.go` carrega `cmd/auction/.env` por caminho relativo:
-
-```bash
-docker compose up -d mongodb   # apenas o banco
-go run cmd/auction/main.go
-```
-
-## Endpoints
-
-| Método | Rota | Descrição |
+| Método | Rota | O que faz |
 | --- | --- | --- |
 | `POST` | `/auction` | Cria um leilão |
 | `GET` | `/auction?status=&category=&productName=` | Lista leilões por filtro |
 | `GET` | `/auction/:auctionId` | Busca leilão por id |
-| `GET` | `/auction/winner/:auctionId` | Retorna o lance vencedor do leilão |
+| `GET` | `/auction/winner/:auctionId` | Lance vencedor do leilão |
 | `POST` | `/bid` | Registra um lance |
-| `GET` | `/bid/:auctionId` | Lista os lances de um leilão |
+| `GET` | `/bid/:auctionId` | Lances de um leilão |
 | `GET` | `/user/:userId` | Busca usuário por id |
 
-Criando um leilão:
-
 ```bash
-curl -i -X POST http://localhost:8080/auction \
+curl -s -X POST http://localhost:8080/auction \
   -H 'Content-Type: application/json' \
-  -d '{
-    "product_name": "Notebook",
-    "category": "Eletronicos",
-    "description": "Notebook usado em bom estado de conservacao",
-    "condition": 1
-  }'
+  -d '{"product_name":"HB20","category":"Automovel",
+       "description":"Completo 4 portas, bom estado de conservacao","condition":1}'
 ```
 
-`condition`: `1` = New, `2` = Used, `3` = Refurbished.
-`status` (na resposta): `0` = Active, `1` = Completed.
+| Campo | Valor | Significado |
+| --- | --- | --- |
+| `condition` | `1` | New |
+| `condition` | `2` | Used |
+| `condition` | `3` | Refurbished |
 
-Consultando os leilões abertos:
+
+| Campo | Valor | Significado |
+| --- | --- | --- |
+| `status` | `0` | Active |
+| `status` | `1` | Completed |
+
+## Fechamento automático
+
+Ao criar um leilão, uma Goroutine é disparada e aguarda `AUCTION_INTERVAL` e então grava `Completed` no Mongo quando o intervalo expira.
+
+O prazo é `timestamp_de_criação + AUCTION_INTERVAL`, a mesma fórmula que o `BidRepository` já usa para recusar lances vencidos. Como a validação vive só em memória, um restart perderia os agendamentos: na inicialização, `ScheduleActiveAuctions` varre os leilões ainda abertos, fecha os vencidos e reagenda novamente o resto.
+
+| Arquivo | Papel |
+| --- | --- |
+| `internal/infra/database/auction/create_auction.go` | Agenda a goroutine e lê `AUCTION_INTERVAL` |
+| `internal/infra/database/auction/update_auction.go` | `CloseAuction` e a varredura de inicialização |
+
+Verificando pela API, com `AUCTION_INTERVAL=20s`:
 
 ```bash
-curl -s "http://localhost:8080/auction?status=0"
+curl -s "http://localhost:8080/auction?status=0"   # logo após criar: aparece aqui
+sleep 25
+curl -s "http://localhost:8080/auction?status=1"   # passado o intervalo: fechado
+```
+Log do fechamento automático:
+
+```json
+{"level":"info","time":"2026-07-31T16:52:56.693Z","message":"Auction 2c6e1c4c-a891-42e4-9f18-a9b2f242f8f7 closed automatically"}
 ```
 
 ## Testes
 
+
 ```bash
-go test ./...
-go test -race ./...                  # recomendado: o projeto é concorrente
-go test -v -run TestNome ./caminho/do/pacote/
+go test -race ./...
 ```
 
-## Fechamento automático
+Os de integração comprovam o cenário do desafio .
 
-> **TODO** — a implementar. Esta seção deve documentar a goroutine de fechamento
-> em `internal/infra/database/auction/create_auction.go` e o teste automatizado
-> que comprova a transição do status para `Completed` após `AUCTION_INTERVAL`.
+Criar, aguardar o intervalo, conferir `Completed`. 
+
+`Precisam de um Mongo acessível!`
+
+```bash
+docker compose up -d mongodb
+go test -race -v ./internal/infra/database/auction/
+```
+
+
+## Stack
+
+Go 1.20 com [Gin](https://github.com/gin-gonic/gin), MongoDB, Docker Compose e [testify](https://github.com/stretchr/testify) nos testes.
