@@ -53,7 +53,7 @@ Para um leilão de um minuto:
 AUCTION_INTERVAL=1m
 ```
 
-## Rotas
+## Endpoints
 
 | Método | Rota | O que faz |
 | --- | --- | --- |
